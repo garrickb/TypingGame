@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html manifest="game.appcache">
+<head>
+    <title>Typing Game</title>
+    <style>
+        body {
+            background-color: black;
+        }
+
+        #game {
+            height: 600px;
+            width: 800px;
+            padding-bottom: 0;
+            margin-bottom: 0;
+            border: 7px solid darkgrey;
+        }
+
+        #gameInfo {
+            height: 100px;
+            width: 800px;
+            padding-top: 0;
+            margin-top: 0;
+            border: 7px solid darkgrey;
+        }
+
+        canvas, img {
+            background-color: white;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: -webkit-optimize-contrast;
+        }
+    </style>
+</head>
+<body>
+<div class="content">
+    <canvas id="game"></canvas>
+    <br>
+    <canvas id="gameInfo"></canvas>
+    <script type="text/javascript" src="resources/js/game.min.js"></script>
+</div>
+</body>
+</html>
