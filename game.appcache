@@ -1,0 +1,29 @@
+CACHE MANIFEST
+Version: 1.001
+CACHE:
+index.html
+resources/js/game.min.js
+resources/img/room.png
+resources/img/monster/BatBrown.PNG
+resources/img/monster/CentipedeBlue.PNG
+resources/img/monster/CentipedeBlueTentacles.PNG
+resources/img/monster/CentipedeBrown.PNG
+resources/img/monster/CentipedeGreenDark.PNG
+resources/img/monster/CentipedeGreenTentacles.PNG
+resources/img/monster/CentipedeGreenTentacles2.PNG
+resources/img/monster/CentipedeGrey.PNG
+resources/img/monster/CentipedePink.PNG
+resources/img/monster/CentipedeRed.PNG
+resources/img/monster/CentipedeRedTentacles.PNG
+resources/img/monster/CentipedeSilver.PNG
+resources/img/monster/LivingMoundBrown.PNG
+resources/img/monster/LivingMoundBrownGreen.PNG
+resources/img/monster/LivingMoundFlesh.PNG
+resources/img/monster/LivingMoundGreen.PNG
+resources/img/monster/LivingMoundGreenBrown.PNG
+resources/img/monster/LivingMoundLightGreen.PNG
+resources/img/monster/LivingMoundMagenta.PNG
+resources/img/monster/LivingMoundOrange.PNG
+resources/img/monster/LivingMoundRed.PNG
+resources/img/monster/LivingMoundTeal.PNG
+resources/img/monster/Zombie.PNG
