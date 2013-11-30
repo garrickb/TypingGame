@@ -13,6 +13,7 @@ canvas.focus();
 window.requestAnimationFrame(run);
 
 // Check if a new cache is available on page load.
+
 window.addEventListener('load', function () {
 
     window.applicationCache.addEventListener('updateready', function () {
@@ -25,6 +26,7 @@ window.addEventListener('load', function () {
     }, false);
 
 }, false);
+
 
 //Global Variables
 ScreenEnum = {
@@ -56,6 +58,8 @@ var bgObj = new Image();
 bgObj.onload = function () {
     bgReady = true;
 };
+bgObj.width = 800;
+bgObj.height = 600;
 bgObj.src = "resources/img/room.png";
 
 
@@ -82,9 +86,8 @@ document.onkeydown = function (e) {
                 activeMonster = undefined;
             return false;
         }
-        return true;
     }
-    return false;
+    return true;
 };
 
 //Handle tab changes
@@ -199,12 +202,15 @@ Monster.prototype.update = function () {
 
 Monster.prototype.draw = function () {
     if (this.currentHP > 0) {
-        //Draw Image
-        var width = loadedMonsters[this.attributes[AttributeEnum.SRC]].width * imgScale;
-        var height = loadedMonsters[this.attributes[AttributeEnum.SRC]].height * imgScale;
-        ctx.drawImage(loadedMonsters[this.attributes[AttributeEnum.SRC]], this.x, this.y,
-            width, height);
-
+        try {
+            //Draw Image
+            var monsterImg = loadedMonsters[this.attributes[AttributeEnum.SRC]];
+            var width = monsterImg.width * imgScale;
+            var height = monsterImg.height * imgScale;
+            ctx.drawImage(monsterImg, this.x, this.y, width, height);
+        } catch (e) {
+            console.log(this.attributes);
+        }
         //Draw HP Bar
         ctx.beginPath();
         ctx.fillStyle = 'green';
@@ -226,64 +232,66 @@ Monster.prototype.draw = function () {
 };
 
 Monster.prototype.drawWord = function () {
-    var selectedFont = "25pt MarkerFelt-Thin, Comic Sans MS";
-    var font = "20pt MarkerFelt-Thin, Comic Sans MS";
-    var boxWidth = 0;
-    var x = this.x;
-    var y = this.y - 17;
-    if (activeMonster == this) {
-        var parts = wordCorrectness();
-        //When i == 0 it's drawing the box surrounding text, when 2 it's drawing the text.
-        for (var i = 0; i < 2; i++) {
-            ctx.font = selectedFont;
-            ctx.fillStyle = 'green';
-            for (var l = 0; l < parts[0].length; l++) {
-                var ch = parts[0].charAt(l);
-                if (i == 0)
-                    boxWidth += ctx.measureText(ch).width;
-                else {
-                    ctx.fillText(ch, x, y);
-                    x += ctx.measureText(ch).width;
+    if (this.currentHP > 0) {
+        var selectedFont = "25pt MarkerFelt-Thin, Comic Sans MS";
+        var font = "20pt MarkerFelt-Thin, Comic Sans MS";
+        var boxWidth = 0;
+        var x = this.x;
+        var y = this.y - 17;
+        if (activeMonster == this) {
+            var parts = wordCorrectness();
+            //When i == 0 it's drawing the box surrounding text, when 2 it's drawing the text.
+            for (var i = 0; i < 2; i++) {
+                ctx.font = selectedFont;
+                ctx.fillStyle = 'green';
+                for (var l = 0; l < parts[0].length; l++) {
+                    var ch = parts[0].charAt(l);
+                    if (i == 0)
+                        boxWidth += ctx.measureText(ch).width;
+                    else {
+                        ctx.fillText(ch, x, y);
+                        x += ctx.measureText(ch).width;
+                    }
+                }
+                ctx.font = font;
+                ctx.fillStyle = 'black';
+                for (l = 0; l < parts[1].length; l++) {
+                    ch = parts[1].charAt(l);
+                    if (i == 0)
+                        boxWidth += ctx.measureText(ch).width;
+                    else {
+                        ctx.fillText(ch, x, y);
+                        x += ctx.measureText(ch).width;
+                    }
+                }
+                if (i == 0) {
+                    //Draw the box surrounding text
+                    ctx.fillStyle = "white";
+                    ctx.beginPath();
+                    ctx.rect(x - 5, y - 30, boxWidth + 10, 40);
+                    ctx.fill();
+                    ctx.lineWidth = 5;
+                    ctx.strokeStyle = 'black';
+                    ctx.stroke();
                 }
             }
+            ctx.font = "12pt Arial";
+        } else {
+            //Draw the box surrounding text
             ctx.font = font;
-            ctx.fillStyle = 'black';
-            for (l = 0; l < parts[1].length; l++) {
-                ch = parts[1].charAt(l);
-                if (i == 0)
-                    boxWidth += ctx.measureText(ch).width;
-                else {
-                    ctx.fillText(ch, x, y);
-                    x += ctx.measureText(ch).width;
-                }
-            }
-            if (i == 0) {
-                //Draw the box surrounding text
-                ctx.fillStyle = "white";
-                ctx.beginPath();
-                ctx.rect(x - 5, y - 30, boxWidth + 10, 40);
-                ctx.fill();
-                ctx.lineWidth = 5;
-                ctx.strokeStyle = 'black';
-                ctx.stroke();
-            }
+            boxWidth = ctx.measureText(this.word).width;
+            ctx.fillStyle = "white";
+            ctx.beginPath();
+            ctx.rect(x - 5, y - 30, boxWidth + 10, 40);
+            ctx.fill();
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = 'black';
+            ctx.stroke();
+            //Draw word
+            ctx.fillStyle = '#000';
+            ctx.fillText(this.word, x, y);
+            ctx.font = "12pt Arial";
         }
-        ctx.font = "12pt Arial";
-    } else {
-        //Draw the box surrounding text
-        ctx.font = font;
-        boxWidth = ctx.measureText(this.word).width;
-        ctx.fillStyle = "white";
-        ctx.beginPath();
-        ctx.rect(x - 5, y - 30, boxWidth + 10, 40);
-        ctx.fill();
-        ctx.lineWidth = 5;
-        ctx.strokeStyle = 'black';
-        ctx.stroke();
-        //Draw word
-        ctx.fillStyle = '#000';
-        ctx.fillText(this.word, x, y);
-        ctx.font = "12pt Arial";
     }
 };
 
@@ -369,15 +377,15 @@ function getWord(difficulty) {
                 "tree", "yes", "no", "sun", "food", "snow", "day", "tall", "short", "hot", "warm",
                 "poor", "rich", "bull", "ox", "elk", "lion", "bear", "wolf", "goat", "hand", "neck",
                 "nail", "mad", "evil", "here", "over", "back", "there", "why", "how", "now", "time",
-                "swag", "yolo", "moo", "beep", "what", "lap", "coin", "cup", "box", "show", "more", "less",
+                "moo", "beep", "what", "lap", "coin", "cup", "box", "show", "more", "less",
                 "kill", "kills", "bar", "bars", "barn", "loud", "lord", "sword", "rat", "bag", "war", "axe",
                 "hello", "apple", "pear", "liar", "the", "zen"];
             break;
         case 2:
-            words = ["bottle", "spooky", "snatch", "squat", "control", "hashtag", "satchel", "sanitize",
-                "keyboard", "lights", "poster", "sword", "battle", "hatchet", "helmet", "plate", "nobody", "no pants",
-                "shirt", "underwear", "hello there", "scrape", "the cat", "a bat", "an apple", "banana", "#swag", "#yolo",
-                "lying", "squire", "knight", "holy cow", "wiggity what", "boulder", "rocking", "living", "hitting", "dying",
+            words = ["bottle", "spooky", "snatch", "squat", "control", "satchel", "sanitize",
+                "keyboard", "lights", "poster", "sword", "battle", "hatchet", "helmet", "plate", "nobody",
+                "shirt", "underwear", "hello there", "scrape", "the cat", "a bat", "an apple", "banana",
+                "lying", "squire", "knight", "boulder", "rocking", "living", "hitting", "dying",
                 "paper cut", "wounded", "zen"];
             break;
         default:
@@ -490,7 +498,31 @@ function render() {
             sortY[i].draw();
         for (var j = 0; j < sortY.length; j++)
             sortY[j].drawWord();
-        ctx.fillText(currentWord, 10, 20);
+        //Draw current word.
+        ctxInfo.font = "17pt MarkerFelt-Thin, Comic Sans MS";
+        var x = 50;
+        var y = 550;
+        var width = 200;
+        var height = 25;
+        var radius = 5;
+        ctx.fillStyle = 'white';
+        ctx.strokeStyle = 'black';
+
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + width - radius, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+        ctx.lineTo(x + width, y + height - radius);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+        ctx.lineTo(x + radius, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.fill();
+        ctx.fillStyle = 'black';
+        ctx.fillText(currentWord, x + 4, y + 16);
         if (focus) {
             //INFO PANE DRAWING
             ctxInfo.fillStyle = 'white';
@@ -499,8 +531,6 @@ function render() {
             ctxInfo.fillStyle = '#000';
             ctxInfo.fillText("EXP: " + player.exp, 100, 60);
             ctxInfo.fillText("$$$$: " + player.gold, 500, 60);
-            if (activeMonster != undefined)
-                ctxInfo.fillText("CurrMonster: " + activeMonster.word, 225, 60);
             ctxInfo.fillStyle = "red";
             ctxInfo.fillRect(infoCanvas.width - 75, infoCanvas.height - 30, 75, 30);
             ctxInfo.fillStyle = '#000';
