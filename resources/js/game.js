@@ -9,24 +9,23 @@ canvas.width = 800;
 canvas.height = 600;
 infoCanvas.width = 800;
 infoCanvas.height = 100;
-canvas.focus();
 window.requestAnimationFrame(run);
 
 // Check if a new cache is available on page load.
+/*
+ window.addEventListener('load', function () {
 
-window.addEventListener('load', function () {
+ window.applicationCache.addEventListener('updateready', function () {
+ if (window.applicationCache.status == window.applicationCache.UPDATEREADY) {
+ // Browser downloaded a new app cache.
+ if (confirm('A new version is available. Load it?')) {
+ window.location.reload();
+ }
+ }
+ }, false);
 
-    window.applicationCache.addEventListener('updateready', function () {
-        if (window.applicationCache.status == window.applicationCache.UPDATEREADY) {
-            // Browser downloaded a new app cache.
-            if (confirm('A new version is available. Load it?')) {
-                window.location.reload();
-            }
-        }
-    }, false);
-
-}, false);
-
+ }, false);
+ */
 
 //Global Variables
 ScreenEnum = {
@@ -52,15 +51,10 @@ var player = {
 };
 
 var currentWord = "";
-var bgReady = false;
 //Background Image
 var bgObj = new Image();
-bgObj.onload = function () {
-    bgReady = true;
-};
 bgObj.width = 800;
 bgObj.height = 600;
-bgObj.src = "resources/img/room.png";
 
 
 //Events
@@ -99,9 +93,9 @@ document.onblur = window.onblur;
 function onGameClick(e) {
     if (focus) {
         if (Math.floor(Math.random() * 2) == 0)
-            monsters.push(new Monster(1, e.clientX, e.clientY));
+            currentLevel.addMonster(new Monster(1, e.clientX, e.clientY));
         else
-            monsters.push(new Monster(2, e.clientX, e.clientY));
+            currentLevel.addMonster(new Monster(2, e.clientX, e.clientY));
     }
 }
 
@@ -114,8 +108,8 @@ function onInfoClick(e) {
     }
 }
 
+var currentLevel;
 var loadedMonsters = [];
-var monsters = [];
 
 AttributeEnum = {
     NAME: 0,
@@ -132,17 +126,19 @@ function Monster(difficulty, x, y) {
     this.difficulty = difficulty;
     this.attributes = getAttributes(difficulty);
     //Load the image if it's not already.
-    if (loadedMonsters[this.attributes[AttributeEnum.SRC]] == null) {
+    if (loadedMonsters[this.attributes[AttributeEnum.SRC]] == undefined) {
         var img = new Image();
         img.src = this.attributes[AttributeEnum.SRC];
         loadedMonsters[this.attributes[AttributeEnum.SRC]] = img;
     }
-    this.x = x - loadedMonsters[this.attributes[AttributeEnum.SRC]].width * imgScale / 2;
-    this.y = y - loadedMonsters[this.attributes[AttributeEnum.SRC]].height * imgScale / 2;
+    this.width = loadedMonsters[this.attributes[AttributeEnum.SRC]].width * imgScale;
+    this.height = loadedMonsters[this.attributes[AttributeEnum.SRC]].height * imgScale;
+    this.x = x - (this.height / 2);
+    this.y = y;
     this.startX = this.x;
     this.currentHP = this.attributes[AttributeEnum.HP];
     this.destX = this.x;
-    this.destY = 500;
+    this.destY = 600 - (this.height / 2);
     //Set the word.
     this.word = getWord(difficulty);
     if (activeMonster == undefined) //Check if new monster matches current words
@@ -150,9 +146,10 @@ function Monster(difficulty, x, y) {
 
 }
 
+
 Monster.prototype.hit = function () {
     if (this == activeMonster)
-        activeMonster = null;
+        activeMonster = undefined;
     this.currentHP -= player.damage;
     if (this.currentHP > 0) {
         this.word = getWord(this.difficulty);
@@ -167,9 +164,11 @@ Monster.prototype.kill = function () {
 
 
 Monster.prototype.destroy = function () {
-    if (this == activeMonster)
-        activeMonster = undefined;
-    monsters.splice(monsters.indexOf(this), 1);
+    if (currentLevel != undefined && currentLevel.monsters != undefined) {
+        if (this == activeMonster)
+            activeMonster = undefined;
+        currentLevel.monsters.splice(currentLevel.monsters.indexOf(this), 1);
+    }
 };
 
 Monster.prototype.update = function () {
@@ -188,8 +187,14 @@ Monster.prototype.update = function () {
             this.x += ((xDist > speed / 2 * speedMod) ? speed / 2 * speedMod : xDist);
         } else if (xDist < 0) {
             this.x -= ((xDist < speed / 2 * speedMod) ? speed / 2 * speedMod : -xDist);
-        } else if (Math.random() * 100 > 95)
-            this.destX = this.startX - 75 + Math.random() * 150;
+        } else if (Math.random() * 100 > 96) {
+            this.destX = this.startX - 150 + Math.random() * 300;
+            if (this.destX >= 800)
+                this.destX = 799;
+            else if (this.destX <= 0)
+                this.destX = 1;
+        }
+
     }
     if (yDist > 0)
         this.y += speed * speedMod;
@@ -201,33 +206,40 @@ Monster.prototype.update = function () {
 
 
 Monster.prototype.draw = function () {
+    //Check the image is loaded
+    if (this.width == 0) {
+        //console.log("Re-loading image for " + this.attributes[AttributeEnum.SRC]);
+        var img = new Image();
+        img.src = this.attributes[AttributeEnum.SRC];
+        loadedMonsters[this.attributes[AttributeEnum.SRC]] = img;
+
+        this.width = loadedMonsters[this.attributes[AttributeEnum.SRC]].width * imgScale;
+        this.height = loadedMonsters[this.attributes[AttributeEnum.SRC]].height * imgScale;
+    }
     if (this.currentHP > 0) {
-        try {
-            //Draw Image
-            var monsterImg = loadedMonsters[this.attributes[AttributeEnum.SRC]];
-            var width = monsterImg.width * imgScale;
-            var height = monsterImg.height * imgScale;
-            ctx.drawImage(monsterImg, this.x, this.y, width, height);
-        } catch (e) {
-            console.log(this.attributes);
-        }
+        //Draw Image
+        var monsterImg = loadedMonsters[this.attributes[AttributeEnum.SRC]];
+
+        ctx.drawImage(monsterImg, this.x - this.width / 2, this.y - this.height / 2, this.width, this.height);
         //Draw HP Bar
         ctx.beginPath();
         ctx.fillStyle = 'green';
-        ctx.rect(this.x, this.y - 5, (this.currentHP / this.attributes[AttributeEnum.HP])
-            * width, 15);
+        ctx.rect(this.x - this.width / 2, this.y - this.height / 2 - 5, (this.currentHP / this.attributes[AttributeEnum.HP])
+            * this.width, 15);
         ctx.fill();
         ctx.lineWidth = 2;
         ctx.strokeStyle = 'black';
         ctx.stroke();
         ctx.beginPath();
         ctx.fillStyle = 'red';
-        ctx.rect(this.x + (this.currentHP / this.attributes[AttributeEnum.HP]) * width, this.y - 5, width - ((this.currentHP / this.attributes[AttributeEnum.HP])
-            * width), 15);
+        ctx.rect(this.x - this.width / 2 + (this.currentHP / this.attributes[AttributeEnum.HP]) * this.width, this.y - this.height / 2 - 5, this.width - ((this.currentHP / this.attributes[AttributeEnum.HP])
+            * this.width), 15);
         ctx.fill();
         ctx.lineWidth = 2;
         ctx.strokeStyle = 'black';
         ctx.stroke();
+        //draw origin
+        //ctx.fillRect(this.x-5,this.y-5,10,10);
     }
 };
 
@@ -236,8 +248,8 @@ Monster.prototype.drawWord = function () {
         var selectedFont = "25pt MarkerFelt-Thin, Comic Sans MS";
         var font = "20pt MarkerFelt-Thin, Comic Sans MS";
         var boxWidth = 0;
-        var x = this.x;
-        var y = this.y - 17;
+        var x = (this.x > (ctx.measureText(this.word).width / 2) + 10) ? ((this.x < 790 + (ctx.measureText(this.word).width / 2) - ctx.measureText(this.word).width) ? this.x - (ctx.measureText(this.word).width / 2) : 790 - ctx.measureText(this.word).width) : 10;
+        var y = this.y - 17 - this.height / 2;
         if (activeMonster == this) {
             var parts = wordCorrectness();
             //When i == 0 it's drawing the box surrounding text, when 2 it's drawing the text.
@@ -265,35 +277,106 @@ Monster.prototype.drawWord = function () {
                     }
                 }
                 if (i == 0) {
-                    //Draw the box surrounding text
-                    ctx.fillStyle = "white";
-                    ctx.beginPath();
-                    ctx.rect(x - 5, y - 30, boxWidth + 10, 40);
-                    ctx.fill();
-                    ctx.lineWidth = 5;
-                    ctx.strokeStyle = 'black';
-                    ctx.stroke();
+                    drawRect(x, y, 35, boxWidth);
+                    ctx.fillStyle = 'black';
                 }
             }
-            ctx.font = "12pt Arial";
+            ctx.font = "20pt MarkerFelt-Thin, Comic Sans MS";
         } else {
-            //Draw the box surrounding text
-            ctx.font = font;
-            boxWidth = ctx.measureText(this.word).width;
-            ctx.fillStyle = "white";
-            ctx.beginPath();
-            ctx.rect(x - 5, y - 30, boxWidth + 10, 40);
-            ctx.fill();
-            ctx.lineWidth = 5;
-            ctx.strokeStyle = 'black';
-            ctx.stroke();
-            //Draw word
-            ctx.fillStyle = '#000';
+            drawRect(x, y, 35, ctx.measureText(this.word).width);
             ctx.fillText(this.word, x, y);
-            ctx.font = "12pt Arial";
         }
     }
 };
+
+//Level Object
+LevelDataEnum = {
+    BG_SRC: 0,
+    DIFFICULTY: 1,
+    ENEMY_LEVELS: 2,
+    BASE_TICKS: 3,
+    MAX_TICKS: 4,
+    ON_START: 5,
+    ON_FINISH: 6,
+    REWARD_EXP: 7,
+    REWARD_GOLD: 8
+};
+//TODO: Item Reward: Array of items awarded on completion
+var levels = [
+    ['resources/img/room/room1.png', 12, [0], 50, 25, function () {
+
+    },
+        function () {
+            alert('level 1 ended: rewarded 50 gold and 10 exp')
+        }, 50, 10],
+    ['resources/img/room/room1.png', 25, [0, 1, 1, 1], 45, 25, function () {
+        alert("omg lvl2 git rdy");
+    },
+        function () {
+            alert('level 2 ended: rewarded 100 exp and 25 gold')
+        }, 100, 25],
+    ['resources/img/room/room1.png', 25, [0, 1, 1, 2, 2, 2], 45, 20, function () {
+    },
+        function () {
+            alert('level 3 ended: rewarded 200 exp and 50 gold')
+        }, 200, 50]
+];
+var levelIndex = 0;
+
+function Level(level) {
+    currentLevel = this;
+    this.currentDifficulty = 0;
+    this.monsters = [];
+    this.active = false;
+    this.data = level;
+    var img = new Image();
+    img.src = level[LevelDataEnum.BG_SRC];
+    img.onload = function () {
+        bgObj = img;
+        level[LevelDataEnum.ON_START]();
+        currentLevel.active = true;
+    };
+}
+Level.prototype.addMonster = function (monster) {
+    if (monster instanceof Monster)
+        this.monsters.push(monster);
+};
+
+Level.prototype.end = function () {
+    this.active = false;
+    player.gold += this.data[LevelDataEnum.REWARD_GOLD];
+    player.exp += this.data[LevelDataEnum.REWARD_EXP];
+    this.data[LevelDataEnum.ON_FINISH]();
+    if (++levelIndex < levels.length) {
+        currentLevel = new Level(levels[levelIndex]);
+    } else {
+        currentLevel = undefined;
+        alert("no more levels to load")
+    }
+    //TODO: Ending screen
+};
+
+
+function drawRect(x, y, height, boxWidth) {
+    var width = boxWidth + 10;
+    ctx.fillStyle = 'white';
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = 'black';
+    ctx.beginPath();
+    ctx.moveTo(x - 5 + 5, y - 28);
+    ctx.lineTo(x - 5 + width - 5, y - 28);
+    ctx.quadraticCurveTo(x - 5 + width, y - 28, x - 5 + width, y - 28 + 5);
+    ctx.lineTo(x - 5 + width, y - 28 + height - 5);
+    ctx.quadraticCurveTo(x - 5 + width, y - 28 + height, x - 5 + width - 5, y - 28 + height);
+    ctx.lineTo(x - 5 + 5, y - 28 + height);
+    ctx.quadraticCurveTo(x - 5, y - 28 + height, x - 5, y - 28 + height - 5);
+    ctx.lineTo(x - 5, y - 28 + 5);
+    ctx.quadraticCurveTo(x - 5, y - 28, x - 5 + 5, y - 28);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.fill();
+    ctx.fillStyle = 'black';
+}
 
 function getAttributes(difficulty) {
     //Name, src, hp, move spd, attk spd, damage, exp, gold
@@ -304,6 +387,18 @@ function getAttributes(difficulty) {
     var gold = 0;
     switch (difficulty) {
         case 0:
+            monsters =
+                [
+                    //Slime
+                    ["Slime", ["resources/img/monster/LivingMoundGreen.PNG", "resources/img/monster/LivingMoundGreenBrown.PNG",
+                        "resources/img/monster/LivingMoundMagenta.PNG", "resources/img/monster/LivingMoundOrange.PNG",
+                        "resources/img/monster/LivingMoundTeal.PNG"], 5, 6, 5, 5]
+                ];
+            monsterID = 0;
+            exp = 2;
+            if (Math.floor(Math.random() * 100) > 65)
+                gold = Math.floor(Math.random() * 3) + 1;
+            break;
         case 1:
             monsters =
                 [
@@ -321,7 +416,7 @@ function getAttributes(difficulty) {
                 ];
             monsterID = Math.floor(Math.random() * monsters.length);
             exp = 5;
-            if (Math.floor(Math.random() * 100) > 60)
+            if (Math.floor(Math.random() * 100) > 50)
                 gold = Math.floor(Math.random() * 5) + 1;
             break;
         case 2:
@@ -330,18 +425,18 @@ function getAttributes(difficulty) {
                     //Slime
                     ["Spiky Slime", ["resources/img/monster/LivingMoundBrown.PNG", "resources/img/monster/LivingMoundBrownGreen.PNG",
                         "resources/img/monster/LivingMoundFlesh.PNG", "resources/img/monster/LivingMoundLightGreen.PNG",
-                        "resources/img/monster/LivingMoundRed.PNG"], 20, 6, 4, 8],
+                        "resources/img/monster/LivingMoundRed.PNG"], 20, 4, 4, 8],
                     //Centipede
                     ["Tentacle Centipede", ["resources/img/monster/CentipedeBlueTentacles.PNG", "resources/img/monster/CentipedeGreenTentacles.PNG",
-                        "resources/img/monster/CentipedeGreenTentacles2.PNG", "resources/img/monster/CentipedeRedTentacles.PNG"], 16, 8, 4, 14]
+                        "resources/img/monster/CentipedeGreenTentacles2.PNG", "resources/img/monster/CentipedeRedTentacles.PNG"], 16, 7, 4, 14]
                 ];
             monsterID = Math.floor(Math.random() * monsters.length);
             exp = 5;
-            if (Math.floor(Math.random() * 100) > 60)
-                gold = Math.floor(Math.random() * 5) + 1;
+            if (Math.floor(Math.random() * 100) > 35)
+                gold = Math.floor(Math.random() * 7) + 2;
             break;
         default:
-            console.error("THIS MONSTER DIFFICULTY IS NOT YET SUPPORTED!");
+            console.error("THIS MONSTER DIFFICULTY IS NOT YET SUPPORTED! [" + difficulty + "]");
             break;
     }
     for (var i = 0; i < 8; i++) {
@@ -365,28 +460,35 @@ function getAttributes(difficulty) {
 }
 
 function getWord(difficulty) {
-    var activeLetters = [monsters.length];
-    for (var i = 0; i < monsters.length; i++)
-        if (monsters[i].word !== undefined)
-            activeLetters[i] = monsters[i].word[0];
+    var activeLetters = [currentLevel.monsters.length];
+    for (var i = 0; i < currentLevel.monsters.length; i++)
+        if (currentLevel.monsters[i].word !== undefined)
+            activeLetters[i] = currentLevel.monsters[i].word[0];
     var words;
     switch (difficulty) {
         case 0:
-        case 1:
-            words = ["mom", "dad", "eye", "leg", "arm", "pig", "hen", "cat", "dog", "god", "well",
-                "tree", "yes", "no", "sun", "food", "snow", "day", "tall", "short", "hot", "warm",
-                "poor", "rich", "bull", "ox", "elk", "lion", "bear", "wolf", "goat", "hand", "neck",
-                "nail", "mad", "evil", "here", "over", "back", "there", "why", "how", "now", "time",
-                "moo", "beep", "what", "lap", "coin", "cup", "box", "show", "more", "less",
-                "kill", "kills", "bar", "bars", "barn", "loud", "lord", "sword", "rat", "bag", "war", "axe",
-                "hello", "apple", "pear", "liar", "the", "zen"];
+            words = ["a", "at", "bat", "cat", "rat", "sat", "an", "can", "fan", "man", "pan", "cap", "map", "nap",
+                "tap", "bag", "wag", "nap", "tap", "rag", "am", "jam", "ram", "yam", "bad", "dad", "had", "mad", "sad",
+                "by", "my", "all", "or", "mom", "and", "us", "bus", "bed", "red", "get", "let", "jet", "net", "pet",
+                "wet", "den", "hen", "pen", "ten", "beg", "leg", "peg", "it", "bit", "fit", "hit", "sit", "big", "dig",
+                "fig", "wig", "in", "fin", "win", "pin", "bid", "did", "hid", "rid", "if", "is", "his", "her", "hip",
+                "sip", "tip", "lip", "hop", "mop", "pop", "top", "dot", "got", "hot", "not", "pot", "job", "mob", "sob",
+                "bun", "fun", "run", "sun", "but", "cut", "gut", "nut", "up", "cup", "pup", "cub", "rub", "tub", "bug",
+                "dug", "hug", "rug", "tug", "zoo", "be", "he", "bee", "see", "she", "we", "go", "so", "do", "zen",
+                "zap", "zip", "zig", "zag", "yak", "yay", "yep", "yet", "elk", "god", "imp", "kill", "kit", "kiss",
+                "key", "ork", "oak", "one", "vex", "vee"];
             break;
+        case 1:
         case 2:
-            words = ["bottle", "spooky", "snatch", "squat", "control", "satchel", "sanitize",
-                "keyboard", "lights", "poster", "sword", "battle", "hatchet", "helmet", "plate", "nobody",
-                "shirt", "underwear", "hello there", "scrape", "the cat", "a bat", "an apple", "banana",
-                "lying", "squire", "knight", "boulder", "rocking", "living", "hitting", "dying",
-                "paper cut", "wounded", "zen"];
+            words = ["sound", "card", "barn", "park", "only", "straw", "ocean", "title", "shark", "card", "good",
+                "name", "right", "might", "think", "tight", "right", "push", "count", "line", "much", "work", "know",
+                "years", "rain", "mail", "wait", "paint", "chant", "paid", "goods", "after", "very", "thing", "means",
+                "blue", "true", "clue", "glue", "gold", "mold", "hold", "help", "where", "great", "girl", "third",
+                "stage", "kind", "cause", "hero", "sift", "gift", "lift", "soft", "stack", "check", "time", "hour",
+                "edge", "built", "felt", "valid", "zinc", "zits", "zone", "zebra", "quail", "quads", "quaff", "quilt",
+                "yowl", "yews", "yank", "apples", "dunes", "double", "dunce", "itches", "immune", "idle", "jiffy",
+                "judge", "jails", "koala", "kisses", "lance", "loser", "lofts", "lodge", "gnome", "north", "numbs",
+                "notes", "ounce", "three", "oval", "order", "onion", "oaken", "robber", "sting", "under"];
             break;
         default:
             return "ERROR";
@@ -396,8 +498,8 @@ function getWord(difficulty) {
     //Remove words that start with an active letter
     for (var letter = 0; letter < activeLetters.length; letter++) {
         for (var word = 0; word < words.length; word++) {
-            if (words[word] != null && activeLetters[letter] == words[word][0]) {
-                words[word] = null;
+            if (words[word] != undefined && activeLetters[letter] == words[word][0]) {
+                words[word] = undefined;
             }
         }
     }
@@ -408,12 +510,13 @@ function getWord(difficulty) {
 }
 
 function getMonster() {
-    for (var i = 0; i < monsters.length; i++) {
-        if (monsters[i].word != undefined && currentWord[0] == monsters[i].word[0]) {
-            activeMonster = monsters[i];
+    for (var i = 0; i < currentLevel.monsters.length; i++) {
+        if (currentLevel.monsters[i].word != undefined && currentWord[0] == currentLevel.monsters[i].word[0]) {
+            activeMonster = currentLevel.monsters[i];
             return;
         }
     }
+    currentWord = "";
     activeMonster = undefined;
 }
 
@@ -432,33 +535,44 @@ function wordCorrectness() {
         returnArray[0] = activeMonster.word.substr(0, correctness);
         returnArray[1] = activeMonster.word.substr(correctness, activeMonster.word.length);
         if (returnArray[1].length == 0) {
-            currentWord = "";
             activeMonster.hit();
-        }
-
+            currentWord = "";
+        } else
+            currentWord = returnArray[0];
         return returnArray;
+    } else {
+        currentWord = "";
     }
     return undefined;
 }
 
 //Core Methods
-var monsterTickCount = 0;
+var monsterTickCount = 50;
 var tickCount = 0;
 
 function update(mod) {
     if (focus) {
-        if (activeScreen == ScreenEnum.Game) {
+        if (activeScreen == ScreenEnum.Game && currentLevel != undefined && currentLevel.active) {
             while (tickTime >= tickRate) {
                 tickTime -= tickRate;
-                for (var i = 0; i < monsters.length; i++) {
-                    if (monsters[i] != null) {
-                        monsters[i].update();
+                for (var i = 0; i < currentLevel.monsters.length; i++) {
+                    if (currentLevel.monsters[i] != undefined) {
+                        currentLevel.monsters[i].update();
                     }
                 }
-                if (tickCount++ >= monsterTickCount) {
-                    tickCount -= monsterTickCount;
-                    monsterTickCount = 15 + Math.random() * 50;
-                    monsters.push(new Monster(0, Math.random() * 600 + 100, 125 + Math.random() * 50));
+                if (currentLevel.data[LevelDataEnum.DIFFICULTY] > currentLevel.currentDifficulty) {
+                    if (tickCount++ >= monsterTickCount) {
+                        tickCount -= monsterTickCount;
+                        var monsterDifficulty = currentLevel.data[LevelDataEnum.ENEMY_LEVELS][Math.floor(Math.random() *
+                            currentLevel.data[LevelDataEnum.ENEMY_LEVELS].length)];
+                        currentLevel.currentDifficulty += monsterDifficulty + 1;
+                        monsterTickCount = currentLevel.data[LevelDataEnum.BASE_TICKS] + (Math.floor(Math.random() *
+                            currentLevel.data[LevelDataEnum.MAX_TICKS]) + 1);
+
+                        currentLevel.addMonster(new Monster(monsterDifficulty, Math.random() * 600 + 100, Math.floor(Math.random() * 10) + 100));
+                    }
+                } else if (currentLevel.monsters.length == 0) {
+                    currentLevel.end();
                 }
             }
             tickTime += mod;
@@ -475,54 +589,37 @@ function render() {
     ctxInfo.webkitImageSmoothingEnabled = false;
     ctxInfo.mozImageSmoothingEnabled = false;
 
+
     if (activeScreen == ScreenEnum.MainMenu) {
         ctx.fillStyle = '#000';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctxInfo.fillStyle = 'white';
         ctxInfo.fillRect(0, 0, infoCanvas.width, infoCanvas.height);
     } else if (activeScreen == ScreenEnum.Game || activeScreen == ScreenEnum.Inventory || activeScreen == ScreenEnum.Store) {
-        //GAME DRAWING
-        //Draw Background
-        ctx.fillStyle = '#000';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        if (bgReady)
+        if (currentLevel != undefined && currentLevel.monsters != undefined) {
+            //GAME DRAWING
+            //Draw Background
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
             ctx.drawImage(bgObj, 0, 0, 800, 600);
-        //Draw Monsters
-        //First sort them by Y value
-        var sortY = monsters.slice(0);
-        sortY.sort(function (a, b) {
-            return a.y - b.y;
-        });
-
-        for (var i = 0; i < sortY.length; i++)
-            sortY[i].draw();
-        for (var j = 0; j < sortY.length; j++)
-            sortY[j].drawWord();
-        //Draw current word.
-        ctxInfo.font = "17pt MarkerFelt-Thin, Comic Sans MS";
-        var x = 50;
-        var y = 550;
-        var width = 200;
-        var height = 25;
-        var radius = 5;
-        ctx.fillStyle = 'white';
-        ctx.strokeStyle = 'black';
-
-        ctx.beginPath();
-        ctx.moveTo(x + radius, y);
-        ctx.lineTo(x + width - radius, y);
-        ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-        ctx.lineTo(x + width, y + height - radius);
-        ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-        ctx.lineTo(x + radius, y + height);
-        ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-        ctx.lineTo(x, y + radius);
-        ctx.quadraticCurveTo(x, y, x + radius, y);
-        ctx.closePath();
-        ctx.stroke();
-        ctx.fill();
-        ctx.fillStyle = 'black';
-        ctx.fillText(currentWord, x + 4, y + 16);
+            //Draw Monsters
+            //First sort them by Y value
+            var sortY = currentLevel.monsters.slice(0);
+            sortY.sort(function (a, b) {
+                return a.y - b.y;
+            });
+            ctx.font = "20pt MarkerFelt-Thin, Comic Sans MS";
+            for (var i = 0; i < sortY.length; i++)
+                if (activeMonster == undefined || sortY[i] != activeMonster) {
+                    sortY[i].draw();
+                    sortY[i].drawWord();
+                }
+            if (activeMonster != undefined) {
+                activeMonster.draw();
+                activeMonster.drawWord();
+            }
+        }
         if (focus) {
             //INFO PANE DRAWING
             ctxInfo.fillStyle = 'white';
@@ -546,7 +643,7 @@ function render() {
             ctxInfo.fillText("GAME PAUSED", 185, 57);
             ctxInfo.font = "15pt MarkerFelt-Thin, Comic Sans MS";
             ctxInfo.fillStyle = 'blue';
-            ctxInfo.fillText("click here to unpause", 280, 80);
+            ctxInfo.fillText("click here to un-pause", 280, 80);
         }
         if (activeScreen == ScreenEnum.Inventory) {
             ctx.font = "40pt MarkerFelt-Thin, Comic Sans MS";
@@ -566,3 +663,6 @@ function run() {
     time = Date.now();
     requestAnimationFrame(run);
 }
+
+//Load the first level.
+new Level(levels[0]);
