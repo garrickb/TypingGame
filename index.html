@@ -7,35 +7,65 @@
             background-color: black;
         }
 
-        #game {
-            height: 600px;
-            width: 800px;
-            padding-bottom: 0;
-            margin-bottom: 0;
-            border: 7px solid darkgrey;
+        h1 {
+            margin-top: 0;
+            color: white;
+            text-align: center;
+            font-size: 20pt;
         }
 
-        #gameInfo {
-            height: 100px;
-            width: 800px;
-            padding-top: 0;
-            margin-top: 0;
-            border: 7px solid darkgrey;
+        .content {
+            float: left;
+            width: 100%;
+            min-width: 960px;
+            height: 800px;
         }
 
         canvas, img {
+            border: 0;
             background-color: white;
             image-rendering: -moz-crisp-edges;
             image-rendering: -webkit-optimize-contrast;
+
+        }
+
+        #game {
+            height: 600px;
+            width: 800px;
+        }
+
+        #invPane {
+            height: 600px;
+            width: 150px;
+        }
+
+        #infoPane {
+            margin-top: -5px;
+            height: 100px;
+            width: 950px;
+
+        }
+
+        #wrapper {
+            width: 950px;
+            margin-left: auto;
+            margin-right: auto;
         }
     </style>
 </head>
 <body>
-<div class="content">
-    <canvas id="game"></canvas>
-    <br>
-    <canvas id="gameInfo"></canvas>
-    <script type="text/javascript" src="resources/js/game.min.js"></script>
+<h1>Keyboard Quest</h1>
+
+<div id="wrapper">
+    <div class="content">
+        <canvas id="game"></canvas>
+        <canvas id="invPane"></canvas>
+        <canvas id="infoPane"></canvas>
+        <script type="text/javascript" src="resources/js/level.js"></script>
+        <script type="text/javascript" src="resources/js/monster.js"></script>
+        <script type="text/javascript" src="resources/js/inventory.js"></script>
+        <script type="text/javascript" src="resources/js/game.js"></script>
+    </div>
 </div>
 </body>
 </html>
