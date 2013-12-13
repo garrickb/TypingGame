@@ -1,8 +1,10 @@
-TypingGame
+Keyboard Warrior
 ==========
 
-Typing game written in pure JavaScript.
+Keyboard Warrior is not your typical typing game. I enjoy typing and boast a pretty fast typing speed, but I have never had my typing skills challenge in an engaging way. This game will be fun for people of all ages that want to better their typing skills. This is a typing game influenced by Z-type (http://phoboslab.org/ztype/)and The Typing of the Dead arcade game. In its final form I plan on having this game function much like a dungeon crawler,
+but instead of just pressing a button to attack your enemies, you must skillfully type out words and sentences.
 
-Artwork taken from <a href="http://pousse.rapiere.free.fr/tome/">David Gervais</a>
+Artwork for enemies was taken from <a href="http://pousse.rapiere.free.fr/tome/">David Gervais</a> which was created under
+the Creative Commons license.
 
-Live Version: http://game.gbuck.org
+Live Version Available At: http://game.gbuck.org
