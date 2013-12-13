@@ -88,6 +88,7 @@ document.onkeypress = function (e) {
         } else {
             currentWord += String.fromCharCode(e.keyCode);
         }
+        console.log(currentWord);
         getMonster();
     }
 };
@@ -193,6 +194,7 @@ var monsterTickCount = 50;
 var tickCount = 0;
 
 function update(mod) {
+    player.inventory.update();
     if (focus) {
         if (activeScreen == ScreenEnum.Game && currentLevel != undefined && currentLevel.active) {
             while (tickTime >= tickRate) {

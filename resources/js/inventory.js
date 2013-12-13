@@ -7,54 +7,45 @@ var plate;
 var boots;
 var sword;
 
-var hoverX, hoverY, hovering = false, hoveredItem;
-var selectedItem, selectedIndex;
+var hoverX, hoverY, hovering = false;
+var activeItem;
+var activeIndex;
+var activeItemInteraction; //0 = hover, 1 = click, 2 = drag
+
+var activeStartX, activeStartY;
 
 var invCanvas = document.getElementById('invPane');
 invCanvas.style.cursor = "none";
 var ctxInv = invCanvas.getContext('2d');
-invCanvas.addEventListener('click', onInventoryClick, false);
 invCanvas.addEventListener('mousemove', onInventoryHover, false);
 invCanvas.addEventListener('mouseover', onInventoryHoverStart, false);
 invCanvas.addEventListener('mouseout', onInventoryHoverEnd, false);
-function onInventoryClick(e) {
-    var x = e.pageX - invCanvas.offsetLeft;
-    var y = e.pageY - invCanvas.offsetTop;
-    if (selectedItem == undefined) {
-        var index = player.inventory.itemIndexAt(x, y);
-        var item = player.inventory.items[index];
-        if (item != undefined) {
-            console.log("You clicked on " + item.name + " [" + index + "]");
-            selectedItem = item;
-            selectedIndex = index;
-        }
-    } else {
-        selectedItem = undefined;
-    }
-}
-function onInventoryHover(e) {
-    var x = e.pageX - invCanvas.offsetLeft;
-    var y = e.pageY - invCanvas.offsetTop;
-    hoverX = x;
-    hoverY = y;
-    if (selectedItem == undefined) {
-        var index = player.inventory.itemIndexAt(x, y);
-        var item = player.inventory.items[index];
-        hoveredItem = item;
-        if (item != undefined) {
-            console.log("You're hovering " + item.name + " [" + index + "]");
-        }
-    } else {
+invCanvas.addEventListener('mousedown', onInventoryDown, false);
+invCanvas.addEventListener('mouseup', onInventoryUp, false);
 
-    }
+function onInventoryHover(e) {
+    hoverX = e.pageX - invCanvas.offsetLeft;
+    hoverY = e.pageY - invCanvas.offsetTop;
 }
 function onInventoryHoverStart(e) {
-    console.log("hover start");
     hovering = true;
 }
 function onInventoryHoverEnd(e) {
-    console.log("hover end");
     hovering = false;
+}
+var mouseDown, mouseDownTime, mouseDownX, mouseDownY;
+function onInventoryDown(e) {
+    mouseDown = true;
+    mouseDownTime = Date.now();
+    mouseDownX = hoverX;
+    mouseDownY = hoverY;
+    console.log("mouse down");
+}
+function onInventoryUp(e) {
+    mouseDown = false;
+    if (activeItemInteraction == undefined)
+        mouseDownTime = undefined;
+    console.log("mouse up");
 }
 
 var loadedItems = [];
@@ -91,7 +82,15 @@ function Item(id) {
     this.imageLoaded = false;
     this.cost = attributes[ItemAttribute.COST];
     this.special = attributes[ItemAttribute.SPECIAL];
+    ctxInv.font = "8pt MarkerFelt-Thin, Comic Sans MS";
+    var widestEntry = ctxInv.measureText(this.name).width;
+    for (var i = 0; i < this.special.length; i++) {
+        if (ctxInv.measureText(this.special[i][0] + ": " + this.special[i][1]).width > widestEntry)
+            widestEntry = ctxInv.measureText(this.special[i][0] + ": " + this.special[i][1]).width;
+    }
+    this.menuWidth = widestEntry + 10;
 }
+
 
 Item.prototype.toString = function () {
     return "'" + this.name + "' [" + this.subCategory + ", " + this.category + "]";
@@ -107,8 +106,8 @@ function Inventory(items) {
 
 Inventory.prototype.itemIndexAt = function (x, y) {
     if ((x > 12.5 && x < 140) && (y > 245 && y < 462.5)
-        && ((((x - 12.5) / 45) % 1) < 0.8) //Exclude area between the columns
-        && ((((y - 245) / 45) % 1) < 0.8)) //Exclude area between the rows
+        && ((((x - 12.5) / 45) % 1) < 0.9) //Exclude area between the columns
+        && ((((y - 245) / 45) % 1) < 0.9)) //Exclude area between the rows
     {
         var column = Math.floor((x - 12.5) / 45);
         var row = Math.floor((y - 245) / 45);
@@ -146,7 +145,9 @@ Inventory.prototype.remove = function (item) {
             if (this.items[i] === item) {
                 console.log("Removed " + this.items[i].name + " at index of " + i + ".");
                 this.items[i] = undefined;
+                return true;
             }
+        return false;
     } else {
         if (item < 15) {
             if (this.items[item] == undefined) {
@@ -168,6 +169,74 @@ Inventory.prototype.print = function () {
     }
 };
 
+Inventory.prototype.update = function () {
+    if (hovering) {
+        if (activeItem == undefined) {
+            activeIndex = player.inventory.itemIndexAt(hoverX, hoverY);
+            if (activeIndex != undefined) {
+                activeItem = player.inventory.items[activeIndex];
+                activeItemInteraction = 0;
+            }
+        } else {
+            switch (activeItemInteraction) {
+                case 0: //Make sure we're still hovering what we are calling the 'active item'.
+                    if (this.itemIndexAt(hoverX, hoverY) != activeIndex) {
+                        this.resetActive();
+                    } else {
+                        //Check if we're clicking
+                        if (mouseDown) {
+                            if ((Date.now() - mouseDownTime > 500) || (Math.abs(hoverX - mouseDownX) + Math.abs(hoverY - mouseDownY)) > 5) {
+                                console.log("start drag");
+                                activeStartX = hoverX;
+                                activeStartY = hoverY;
+                                activeIndex = this.itemIndexAt(hoverX, hoverY);
+                                activeItem = this.items[activeIndex];
+                                activeItemInteraction = 2;
+                                mouseDownTime = undefined;
+                            }
+                        } else if (mouseDownTime != undefined) {
+                            console.log("clicked item");
+                            activeStartX = hoverX;
+                            activeStartY = hoverY;
+                            activeIndex = this.itemIndexAt(hoverX, hoverY);
+                            activeItem = this.items[activeIndex];
+                            activeItemInteraction = 1;
+                            mouseDownTime = undefined;
+                        }
+                    }
+                    break;
+                case 1: //Make sure that we're still within range of menu items, update hovered menu item.
+                    break;
+                case 2: //Make sure that we're still holding down mouse
+                    if (!mouseDown) {
+                        console.log("end drag");
+                        this.resetActive();
+                    } else {
+                        console.log("draggin'");
+                        activeStartX = hoverX;
+                        activeStartY = hoverY;
+                    }
+                    break;
+            }
+        }
+    } else {
+        if (mouseDown || activeItem != undefined) {
+            this.resetActive();
+            mouseDown = false;
+            console.log("action was interrupted");
+        }
+    }
+};
+Inventory.prototype.resetActive = function () {
+    console.log('reset');
+    mouseDownTime = undefined;
+    mouseDownX = undefined;
+    mouseDownY = undefined;
+    activeIndex = undefined;
+    activeItem = undefined;
+    activeItemInteraction = undefined;
+};
+
 Inventory.prototype.draw = function () {
     ctxInv.fillStyle = '#FFF';
     ctxInv.imageSmoothingEnabled = false;
@@ -175,7 +244,7 @@ Inventory.prototype.draw = function () {
     ctxInv.mozImageSmoothingEnabled = false;
     ctxInv.fillRect(0, 0, invCanvas.width, invCanvas.height);
     ctxInv.drawImage(invObj, 0, 0, 150, 600);
-    for (var i = 0; i < 15; i++) {
+    for (i = 0; i < 15; i++) {
         if (this.items[i] != undefined) {
             if (!this.items[i].imageLoaded) {
                 console.log("Re-loading image for item " + this.items[i].src);
@@ -190,39 +259,70 @@ Inventory.prototype.draw = function () {
             }
         }
     }
-    if (selectedItem != undefined) {
-        ctxInv.fillText(selectedItem.name, 50, 50);
-    } else if (hovering && hoveredItem != undefined) {
-        var extraInfo = hoveredItem.special;
-        ctxInv.font = "8pt MarkerFelt-Thin, Comic Sans MS";
-        var widestEntry = ctxInv.measureText(hoveredItem.name).width;
-        for (var i = 0; i < extraInfo.length; i++) {
-            if (ctxInv.measureText(extraInfo[i][0] + ": " + extraInfo[i][1]).width > widestEntry)
-                widestEntry = ctxInv.measureText(extraInfo[i][0] + ": " + extraInfo[i][1]).width;
+
+    if (activeItem != undefined) {
+        var menuX, menuHeight, menuWidth;
+        switch (activeItemInteraction) {
+            case 0: //HOVERING
+                var extraInfo = activeItem.special;
+                ctxInv.font = "8pt MarkerFelt-Thin, Comic Sans MS";
+                menuWidth = activeItem.menuWidth;
+                menuHeight = 30 + (extraInfo.length) * 12;
+                menuX = (hoverX > menuWidth) ? hoverX - menuWidth : (hoverX + menuWidth > invCanvas.width) ? 0 : hoverX;
+                ctxInv.beginPath();
+                ctxInv.fillStyle = 'grey';
+                ctxInv.rect(menuX, hoverY, menuWidth, menuHeight);
+                ctxInv.fill();
+                ctxInv.lineWidth = 2;
+                ctxInv.strokeStyle = 'black';
+                ctxInv.stroke();
+                if (activeItem.level > 5)
+                    ctxInv.fillStyle = 'darkred';
+                else
+                    ctxInv.fillStyle = 'darkgreen';
+                var currY = hoverY + 24;
+                ctxInv.fillText(activeItem.name, menuX + 5, currY - 12);
+                ctxInv.fillStyle = 'white';
+                for (i = 0; i < extraInfo.length; i++) {
+                    ctxInv.fillText(extraInfo[i][0] + ": " + extraInfo[i][1], menuX + 5, currY);
+                    currY += 12;
+                }
+                ctxInv.fillStyle = 'gold';
+                ctxInv.fillText("$$$ " + activeItem.cost, menuX + 5, currY);
+                break;
+            case 1: //CLICKED
+                ctxInv.font = "8pt MarkerFelt-Thin, Comic Sans MS";
+                menuWidth = activeItem.menuWidth;
+                menuX = (activeStartX > menuWidth) ? activeStartX - menuWidth : (activeStartX + menuWidth > invCanvas.width) ? 0 : activeStartX;
+                menuHeight = 30;
+                ctxInv.beginPath();
+                ctxInv.fillStyle = 'grey';
+                ctxInv.rect(menuX, activeStartY, menuWidth, menuHeight);
+                ctxInv.fill();
+                ctxInv.lineWidth = 2;
+                ctxInv.strokeStyle = 'black';
+                ctxInv.stroke();
+                ctxInv.fillStyle = 'white';
+                ctxInv.fillText(activeItem.name, menuX + 5, activeStartY + 12);
+                ctxInv.fillText("Clicked.", menuX + 5, activeStartY + 24);
+                break;
+            case 2: //DRAGGED
+                ctxInv.font = "8pt MarkerFelt-Thin, Comic Sans MS";
+                menuWidth = activeItem.menuWidth;
+                menuX = (activeStartX > menuWidth) ? activeStartX - menuWidth : (activeStartX + menuWidth > invCanvas.width) ? 0 : activeStartX;
+                menuHeight = 30;
+                ctxInv.beginPath();
+                ctxInv.fillStyle = 'grey';
+                ctxInv.rect(menuX, activeStartY, menuWidth, menuHeight);
+                ctxInv.fill();
+                ctxInv.lineWidth = 2;
+                ctxInv.strokeStyle = 'black';
+                ctxInv.stroke();
+                ctxInv.fillStyle = 'white';
+                ctxInv.fillText(activeItem.name, menuX + 5, activeStartY + 12);
+                ctxInv.fillText("Holding.", menuX + 5, activeStartY + 24);
+                break;
         }
-        var menuWidth = widestEntry + 10;
-        var menuHeight = 30 + (extraInfo.length) * 12;
-        var menuX = (hoverX > menuWidth) ? hoverX - menuWidth : (hoverX + menuWidth > invCanvas.width) ? 0 : hoverX;
-        ctxInv.beginPath();
-        ctxInv.fillStyle = 'grey';
-        ctxInv.rect(menuX, hoverY, menuWidth, menuHeight);
-        ctxInv.fill();
-        ctxInv.lineWidth = 2;
-        ctxInv.strokeStyle = 'black';
-        ctxInv.stroke();
-        if (hoveredItem.level > 5)
-            ctxInv.fillStyle = 'darkred';
-        else
-            ctxInv.fillStyle = 'darkgreen';
-        var currY = hoverY + 24;
-        ctxInv.fillText(hoveredItem.name, menuX + 5, currY - 12);
-        ctxInv.fillStyle = 'white';
-        for (var i = 0; i < extraInfo.length; i++) {
-            ctxInv.fillText(extraInfo[i][0] + ": " + extraInfo[i][1], menuX + 5, currY)
-            currY += 12;
-        }
-        ctxInv.fillStyle = 'gold';
-        ctxInv.fillText("$$$ " + hoveredItem.cost, menuX + 5, currY)
     }
     //Draw Cursor
     if (hovering) {

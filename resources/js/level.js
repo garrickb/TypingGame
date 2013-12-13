@@ -46,7 +46,7 @@ function Level(level) {
     var img = new Image();
     img.src = level[LevelDataEnum.BG_SRC];
     img.onload = function () {
-        bgObj = img;
+        var bgObj = img;
         level[LevelDataEnum.ON_START]();
         currentLevel.active = true;
     };
