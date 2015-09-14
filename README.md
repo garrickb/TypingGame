@@ -8,5 +8,3 @@ but instead of just pressing a button to attack your enemies, you must skillfull
 
 Artwork for enemies was taken from <a href="http://pousse.rapiere.free.fr/tome/">David Gervais</a> which was created under
 the Creative Commons license.
-
-Live Version Available At: http://game.gbuck.org
